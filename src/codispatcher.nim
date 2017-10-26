@@ -22,6 +22,8 @@ proc performInitialization() =
   discard
 
 proc dispatch() =
+  ## Receives request from stdin and checks its signature. If check is passed
+  ## then converts request to json and dispatches it to the module.
   let input = newFileStream(stdin)
   let output = newFileStream(stdout)
   let request = SignedRequest.deserialize(input)
