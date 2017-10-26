@@ -2,7 +2,9 @@ from streams import newFileStream
 from parseopt import getopt, cmdShortOption, cmdLongOption
 from co_protocol.pipeproto import serialize, deserialize
 from co_protocol.pipeproto import DispatcherAnswerType, SignedRequest, Answer
+from co_protocol.pipeproto import DispatcherInformation, ModuleInfo
 from co_protocol.signature import checkSignature
+from detector import enumerateModules
 
 proc exitAndUsage() =
   quit("No manual call of this program allowed.")
@@ -19,7 +21,9 @@ proc performInitialization() =
   ## environment variables and then asks all detected modules for module
   ## information. After that it writes to standart output all collected
   ## module information in serialized form.
-  discard
+  let output = newFileStream(stdout)
+  let info: DispatcherInformation = (modules: enumerateModules())
+  info.serialize(output)
 
 proc dispatch() =
   ## Receives request from stdin and checks its signature. If check is passed
