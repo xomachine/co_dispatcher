@@ -29,7 +29,7 @@ proc enumerateModules(): seq[ModuleInfo] =
           fromJson(module, data.parseJson())
           result.add(module)
         except DeserializeError:
-          stderr.writeLine("Can not deserialize!")
+          stderr.writeLine("Can not deserialize file:" & file & "!")
           stderr.writeLine(getCurrentExceptionMsg())
       else:
         stderr.writeLine("Can not get info from " & file)
