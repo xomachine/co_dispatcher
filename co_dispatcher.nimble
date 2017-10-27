@@ -5,8 +5,7 @@ author        = "xomachine"
 description   = "Dispatcher module of the Cooperation package"
 license       = "MIT"
 
-srcDir        = "src"
-bin           = @["codispatcher"]
+bin           = @["co_dispatcher/codispatcher"]
 # Dependencies
 
 requires "nim >= 0.17.3"
