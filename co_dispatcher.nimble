@@ -11,3 +11,15 @@ bin           = @["co_dispatcher/codispatcher"]
 requires "nim >= 0.17.3"
 requires "co_protocol"
 
+task tests, "Run tests":
+  exec("nimble build")
+  let test_files = listFiles("tests")
+  let executable = bin[0]
+  mkDir("modules")
+  for file in test_files:
+    exec("nim c -d:module -o:modules/testmodule " & file)
+    exec("export DISPATCHER=" & executable & "; nim c --run -o:tmpfile -p:" &
+         thisDir() & " " & file)
+    rmFile("tmpfile")
+    rmFile("modules/testmodule")
+  rmDir("modules")
