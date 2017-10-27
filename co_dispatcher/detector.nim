@@ -3,7 +3,8 @@ from co_protocol.pipeproto import ModuleInfo
 proc enumerateModules*(): seq[ModuleInfo]
 
 from ospaths import getEnv, existsEnv, `/` , getConfigDir
-from osproc import startProcess, outputStream, ProcessOption, waitForExit,hasData
+from osproc import startProcess, outputStream, ProcessOption, waitForExit,
+                   hasData, close
 from os import walkFiles, getFilePermissions, FilePermission, sleep
 from streams import readAll
 import co_protocol.modproto
@@ -21,7 +22,7 @@ proc enumerateModules(): seq[ModuleInfo] =
       let process = startProcess(file, args = ["-n"],
         options = {poDemon})
       let exitcode = process.waitForExit(500)
-      if process.hasData():
+      if exitcode == 0 and process.hasData():
         let responceStream = outputStream(process)
         let data = responceStream.readAll()
         var module: ModuleInfo
@@ -33,4 +34,5 @@ proc enumerateModules(): seq[ModuleInfo] =
           stderr.writeLine(getCurrentExceptionMsg())
       else:
         stderr.writeLine("Can not get info from " & file)
+      process.close()
 
