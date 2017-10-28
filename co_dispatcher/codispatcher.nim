@@ -1,10 +1,13 @@
 from streams import newFileStream
 from parseopt import getopt, cmdShortOption, cmdLongOption
+from ospaths import getEnv, existsEnv, getTempDir, `/`
+from os import paramCount
 from co_protocol.pipeproto import serialize, deserialize
 from co_protocol.pipeproto import DispatcherAnswerType, SignedRequest, Answer
-from co_protocol.pipeproto import DispatcherInformation, ModuleInfo
+from co_protocol.pipeproto import ModuleInfo, ReqType
 from co_protocol.signature import checkSignature
-from detector import enumerateModules
+from cache import info, load, save, fill, ModuleCache
+from actions import runTask, prepareTask
 
 proc exitAndUsage() =
   quit("No manual call of this program allowed.")
@@ -16,13 +19,27 @@ proc printHelp() =
 It should not be called manually. Only Cooperation server can call it in""" &
     """ proper way."""
 
+if paramCount() == 0:
+  exitAndUsage()
+
+let cachefile =
+  if existsEnv("COMODCACHE"):
+    getEnv("COMODCACHE")
+  else: getTempDir() / "Cooperation" / "modules.cache"
+
+let modcache =
+  try:
+    load(cachefile)
+  except:
+    ModuleCache.fill()
+
 proc performInitialization() =
   ## This proc should perform search of modules in folders specified by
   ## environment variables and then asks all detected modules for module
   ## information. After that it writes to standart output all collected
   ## module information in serialized form.
   let output = newFileStream(stdout)
-  let info: DispatcherInformation = (modules: enumerateModules())
+  let info = Answer(kind: Abilities, modules: modcache.info())
   info.serialize(output)
 
 proc dispatch() =
@@ -31,11 +48,21 @@ proc dispatch() =
   let input = newFileStream(stdin)
   let output = newFileStream(stdout)
   let request = SignedRequest.deserialize(input)
-  if request.checkSignature():
-    discard
-  else:
-    let reply = Answer(kind: NotAuthorized)
-    reply.serialize(output)
+  let answer = 
+    if request.checkSignature():
+      case request.kind
+      of Run:
+        request.task.runTask()
+      of Prepare:
+        request.task.prepareTask()
+      of Remove, Status:
+        # Just a signature checking should be performed
+        Answer(kind: Done)
+      else:
+        Answer(kind: Error, description: "Unexpected request type!")
+    else:
+      Answer(kind: NotAuthorized)
+  answer.serialize(output)
 
 for kind, key, val in getopt():
   case kind
@@ -52,3 +79,4 @@ for kind, key, val in getopt():
   else:
     exitAndUsage()
 
+modcache.save(cachefile)
