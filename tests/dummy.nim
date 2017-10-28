@@ -11,7 +11,7 @@ when defined(module):
     echo """}"""
 else:
   from co_protocol.pipeproto import deserialize, ModuleInfo, size,
-                                    DispatcherInformation
+                                    Answer, DispatcherAnswerType
   from osproc import startProcess, poEvalCommand, outputStream, close, hasData,
                      waitForExit
   from ospaths import getEnv
@@ -26,14 +26,15 @@ else:
     test "Simple initialization":
       let m: ModuleInfo = (name: "dummy", description: "Dummy module for tests",
                            extensions: @[], reqFields: @[], optionalFields: @[])
-      let d: DispatcherInformation = (modules: @[m])
+      let d = Answer(kind: Abilities, modules: @[m])
       let p = startProcess(dispatcherExecutable, args = ["-i"], env = envTable)
       let outputStream = p.outputStream()
       let exitcode = p.waitForExit(1)
       require(exitcode == 0)
       require(p.hasData())
-      let dsd = DispatcherInformation.deserialize(outputStream)
+      let dsd = Answer.deserialize(outputStream)
       p.close()
+      require(dsd.kind == d.kind)
       require(dsd.modules.len == d.modules.len)
       let dsm = dsd.modules[0]
       check(dsm.name == m.name)

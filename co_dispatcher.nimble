@@ -6,6 +6,7 @@ description   = "Dispatcher module of the Cooperation package"
 license       = "MIT"
 
 bin           = @["co_dispatcher/codispatcher"]
+skipDirs      = @["tests"]
 # Dependencies
 
 requires "nim >= 0.17.3"
@@ -16,10 +17,14 @@ task tests, "Run tests":
   let test_files = listFiles("tests")
   let executable = bin[0]
   mkDir("modules")
+  mkDir("cache")
   for file in test_files:
     exec("nim c -d:module -o:modules/testmodule " & file)
-    exec("export DISPATCHER=" & executable & "; nim c --run -o:tmpfile -p:" &
+    exec("export DISPATCHER=" & executable & "; export COMODCACHE=" &
+         thisDir() & "/cache/modules.cache" & "; nim c --run -o:tmpfile -p:" &
          thisDir() & " " & file)
     rmFile("tmpfile")
+    rmFile("cache/modules.cache")
     rmFile("modules/testmodule")
+  rmDir("cache")
   rmDir("modules")
