@@ -23,6 +23,7 @@ from sequtils import toSeq
 from streams import newFileStream, close
 from tables import pairs, len, toTable, initTable, `[]=`
 from detector import enumerateModules
+from math import nextPowerOfTwo
 
 proc info(self: ModuleCache): seq[ModuleInfo] =
   ## Returns list of `ModuleInfo` structures to send it via the `Abilities`
@@ -36,6 +37,7 @@ proc info(self: ModuleCache): seq[ModuleInfo] =
 proc load(filename: string): ModuleCache =
   ## Loads `ModuleCache` from given file.
   let fd = newFileStream(filename, fmRead)
+  assert(not fd.isNil, "Can not open file for read: " & filename)
   let flatCache = FlatModuleCache.deserialize(fd)
   toTable(flatCache)
 
@@ -48,6 +50,7 @@ proc save(self: ModuleCache, filename: string) =
     flatCache[i] = (key: k, value: v)
     i += 1
   let fd = newFileStream(filename, fmWrite)
+  assert(not fd.isNil, "Can not open file for write: " & filename)
   flatCache.serialize(fd)
   fd.close()
 
@@ -55,7 +58,7 @@ proc fill*(self: typedesc[ModuleCache]): ModuleCache =
   ## Runs detector procedure and fills the `ModuleCache` with information
   ## about detected modules.
   let modules = enumerateModules()
-  result = initTable[string, Module](modules.len)
+  result = initTable[string, Module](nextPowerOfTwo(modules.len))
   for module in modules:
     result[module.modinfo.name] = module
 

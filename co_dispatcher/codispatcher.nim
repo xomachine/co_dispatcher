@@ -1,7 +1,7 @@
 from streams import newFileStream
 from parseopt import getopt, cmdShortOption, cmdLongOption
-from ospaths import getEnv, existsEnv, getTempDir, `/`
-from os import paramCount
+from ospaths import getEnv, existsEnv, getTempDir, `/`, splitPath
+from os import paramCount, fileExists, createDir
 from co_protocol.pipeproto import serialize, deserialize
 from co_protocol.pipeproto import DispatcherAnswerType, SignedRequest, Answer
 from co_protocol.pipeproto import ModuleInfo, ReqType
@@ -28,9 +28,12 @@ let cachefile =
   else: getTempDir() / "Cooperation" / "modules.cache"
 
 let modcache =
-  try:
-    load(cachefile)
-  except:
+  if fileExists(cachefile):
+    try:
+      load(cachefile)
+    except:
+      ModuleCache.fill()
+  else:
     ModuleCache.fill()
 
 proc performInitialization() =
@@ -79,4 +82,8 @@ for kind, key, val in getopt():
   else:
     exitAndUsage()
 
-modcache.save(cachefile)
+try:
+  createDir(cachefile.splitPath().head)
+  modcache.save(cachefile)
+except AssertionError:
+  stderr.writeLine("Can not save module cache:\n" & getCurrentExceptionMsg())
