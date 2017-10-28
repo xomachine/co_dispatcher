@@ -29,7 +29,7 @@ else:
       let d = Answer(kind: Abilities, modules: @[m])
       let p = startProcess(dispatcherExecutable, args = ["-i"], env = envTable)
       let outputStream = p.outputStream()
-      let exitcode = p.waitForExit(1)
+      let exitcode = p.waitForExit(500)
       require(exitcode == 0)
       require(p.hasData())
       let dsd = Answer.deserialize(outputStream)
