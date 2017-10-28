@@ -55,9 +55,9 @@ proc dispatch() =
     if request.checkSignature():
       case request.kind
       of Run:
-        request.task.runTask()
+        modcache.runTask(request.task)
       of Prepare:
-        request.task.prepareTask()
+        modcache.prepareTask(request.task)
       of Remove, Status:
         # Just a signature checking should be performed
         Answer(kind: Done)
