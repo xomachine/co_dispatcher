@@ -5,10 +5,13 @@ proc runTask*(cache: ModuleCache, task: Task): Answer
 proc prepareTask*(cache: ModuleCache, task: Task): Answer
 
 from co_protocol.signature import checkSignature
-from co_protocol.pipeproto import DispatcherAnswerType, SignedRequest,
-                                  deserialize
+from co_protocol.pipeproto import DispatcherAnswerType, SignedRequest, serialize,
+                                  deserialize, ReqType
 from tables import `[]`
-from detector import feedData
+from streams import newFileStream, atEnd, write, readChar, readAll
+from detector import feedData, feedAndWait
+from osproc import Process, hasData, outputStream, inputStream, terminate,
+                   waitForExit
 from macros import nnkOfBranch, expectKind, expectMinLen, insert, `[]`, newTree,
                    hint, children, quote, kind, treeRepr, nnkPar
 import co_protocol.modproto
@@ -43,8 +46,60 @@ macro generalDispatch*(request: SignedRequest, matches: typed): untyped =
       Answer(kind: NotAuthorized)
   when defined(debug): hint(result.treeRepr)
 
+proc stopTask(task: Process): Answer =
+  ## Sends SIGTERM to the process and returns `Done` answer if the task will
+  ## quit in time. Otherwise returns `Error` answer.
+  const timeout = 5000 # 5 seconds should be enough to cleanup
+  task.terminate()
+  let exitcode = task.waitForExit(timeout)
+  if exitcode == 0:
+    Answer(kind: Done)
+  else:
+    Answer(kind: Error, description: "The module is not finished in time")
+
 proc runTask(cache: ModuleCache, task: Task): Answer =
-  discard
+  ## Passes given `task` to module and handles all communications between
+  ## the module and the queue server.
+  let executable = cache[task.module].path
+  let input = newFileStream(stdin)
+  let output = newFileStream(stdout)
+  let tmessage: TaskMessage = (action: "run", task: task)
+  let jsonmessage = $toJson(tmessage)
+  proc checkInput(p: Process) =
+    if p.hasData(): # The message from the module pending
+      let pout = p.outputStream()
+      let msgchar = pout.readChar() # The module sends only one char which
+                                    # should be considered as the message
+                                    # code
+      let answer =
+        case msgchar
+        of 's': Answer(kind: Done) # The module started successfully,
+                                   # so we forwarding that message
+        of 'f': p.stopTask() # The module finished successfully and
+                             # waits for termination and the queue
+                             # server notification
+        of 'e': Answer(kind: Error, description: pout.readAll())
+          # The module has encountered an error, the error description is
+          # placed after error byte. The module will be exited automatically
+          # after error.
+        else: Answer(kind: Error, description: "Unknown responce from module!")
+      answer.serialize(output)
+    if not input.atEnd(): # The message from the queue server
+      let request = SignedRequest.deserialize(input)
+      let answer = request.generalDispatch({
+          Remove: p.stopTask(), # The module should be able to handle sigterm
+                                # and correctly finish the task.
+          Status: Answer(kind: Done) # Just a signature check
+        })
+      answer.serialize(output)
+  executable.feedAndWait(jsonmessage, checkInput)
+  let stopreply = Answer(kind: Error,
+                         description: "The module has stopped without notice!")
+  # After completion of feedAndWait procedure, the module is defenitely
+  # stopped. So if the module stop was not expected, the error message should
+  # notify the queue server about it. Otherwise the queue server will ignore
+  # this message (or stop the dispatcher before the message will be sent.
+  stopreply.serialize(output)
 
 proc prepareTask(cache: ModuleCache, task: Task): Answer =
   ## The task preparation is the way to obtain task requirements from

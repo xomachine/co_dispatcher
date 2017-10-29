@@ -1,11 +1,13 @@
 from cache import Module
+from osproc import Process
 
 proc enumerateModules*(): seq[Module]
 proc feedData*(executable: string, data: string = nil): string
+proc feedAndWait*(executable, data: string, onIteration: proc (p: Process))
 
 from ospaths import getEnv, existsEnv, `/` , getConfigDir
 from osproc import startProcess, outputStream, ProcessOption, waitForExit,
-                   hasData, close, inputStream
+                   hasData, close, inputStream, running
 from os import walkFiles, getFilePermissions, FilePermission, sleep
 from streams import readAll, write
 from co_protocol.pipeproto import ModuleInfo
@@ -33,14 +35,24 @@ proc enumerateModules(): seq[Module] =
       else:
         stderr.writeLine("Can not get info from " & file)
 
-proc feedData(executable: string, data: string = nil): string =
+proc startWithData(executable, data: string): Process =
   let args = if data.isNil: @["-n"] else: @[]
   let process = startProcess(executable, args = args, options = {poDemon})
   if not data.isNil:
     let inputStream = process.inputStream()
     inputStream.write(data)
+  process
+
+proc feedData(executable: string, data: string = nil): string =
+  let process = startWithData(executable, data)
   let exitcode = process.waitForExit(500)
   if exitcode == 0 and process.hasData():
     let responceStream = process.outputStream()
     result = responceStream.readAll()
   process.close()
+
+proc feedAndWait(executable, data: string, onIteration: proc (p: Process)) =
+  let process = startWithData(executable, data)
+  while process.running():
+    onIteration(process)
+    sleep(1000)
