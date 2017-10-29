@@ -1,7 +1,6 @@
 from streams import newFileStream
-from parseopt import getopt, cmdShortOption, cmdLongOption
 from ospaths import getEnv, existsEnv, getTempDir, `/`, splitPath
-from os import paramCount, fileExists, createDir
+from os import paramCount, fileExists, createDir, paramStr
 from co_protocol.pipeproto import serialize, deserialize
 from co_protocol.pipeproto import DispatcherAnswerType, SignedRequest, Answer
 from co_protocol.pipeproto import ModuleInfo, ReqType
@@ -19,8 +18,6 @@ proc printHelp() =
 It should not be called manually. Only Cooperation server can call it in""" &
     """ proper way."""
 
-if paramCount() == 0:
-  exitAndUsage()
 
 let cachefile =
   if existsEnv("COMODCACHE"):
@@ -67,23 +64,21 @@ proc dispatch() =
       Answer(kind: NotAuthorized)
   answer.serialize(output)
 
-for kind, key, val in getopt():
-  case kind
-  of cmdShortOption, cmdLongOption:
-    case key
-    of "i", "init":
-      performInitialization()
-    of "d", "dispatch":
-      dispatch()
-    of "h", "help":
-      printHelp()
-    else:
-      exitAndUsage()
+if paramCount() == 1:
+  case paramStr(1)
+  of "-i", "--init":
+    performInitialization()
+  of "-d", "--dispatch":
+    dispatch()
+  of "-h", "--help":
+    printHelp()
   else:
     exitAndUsage()
+  try:
+    createDir(cachefile.splitPath().head)
+    modcache.save(cachefile)
+  except AssertionError:
+    stderr.writeLine("Can not save module cache:\n" & getCurrentExceptionMsg())
+  quit(QuitSuccess)
+exitAndUsage()
 
-try:
-  createDir(cachefile.splitPath().head)
-  modcache.save(cachefile)
-except AssertionError:
-  stderr.writeLine("Can not save module cache:\n" & getCurrentExceptionMsg())
