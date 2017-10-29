@@ -6,7 +6,7 @@ from co_protocol.pipeproto import DispatcherAnswerType, SignedRequest, Answer
 from co_protocol.pipeproto import ModuleInfo, ReqType
 from co_protocol.signature import checkSignature
 from cache import info, load, save, fill, ModuleCache
-from actions import runTask, prepareTask
+from actions import runTask, prepareTask, generalDispatch
 
 proc exitAndUsage() =
   quit("No manual call of this program allowed.")
@@ -48,20 +48,11 @@ proc dispatch() =
   let input = newFileStream(stdin)
   let output = newFileStream(stdout)
   let request = SignedRequest.deserialize(input)
-  let answer = 
-    if request.checkSignature():
-      case request.kind
-      of Run:
-        modcache.runTask(request.task)
-      of Prepare:
-        modcache.prepareTask(request.task)
-      of Remove, Status:
-        # Just a signature checking should be performed
-        Answer(kind: Done)
-      else:
-        Answer(kind: Error, description: "Unexpected request type!")
-    else:
-      Answer(kind: NotAuthorized)
+  let answer = request.generalDispatch({
+      Run: modcache.runTask(request.task),
+      Prepare: modcache.prepareTask(request.task),
+      Status, Remove: Answer(kind: Done)
+    })
   answer.serialize(output)
 
 if paramCount() == 1:
