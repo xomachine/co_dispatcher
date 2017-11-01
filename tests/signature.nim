@@ -39,3 +39,20 @@ else:
       let answer = Answer.deserialize(output)
       p.close()
       check(answer.kind == Done)
+    test "Wrong signature":
+      let r = SignedRequest(passhash: "", time: random(10000).uint32,
+                            kind: Status, id: random(10000).TaskId)
+      let signed = r.sign()
+      signatureFile.writeFile("invalidsignaturekey")
+      let p = startProcess(dispatcher, args = ["-d"])
+      let input = p.inputStream()
+      signed.serialize(input)
+      input.flush() # Do not forget to flush the input stream to push forward
+                    # serialized data to the process!
+      let output = p.outputStream()
+      let ecode = p.waitForExit(1000)
+      require(ecode == 0)
+      require(p.hasData())
+      let answer = Answer.deserialize(output)
+      p.close()
+      check(answer.kind == NotAuthorized)
