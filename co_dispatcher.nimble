@@ -21,10 +21,12 @@ task tests, "Run tests":
   for file in test_files:
     exec("nim c -d:module -o:modules/testmodule " & file)
     exec("export DISPATCHER=" & executable & "; export COMODCACHE=" &
-         thisDir() & "/cache/modules.cache" & "; nim c --run -o:tmpfile -p:" &
+         thisDir() & "/cache/modules.cache" & "; export COSIGNATURE=" &
+         thisDir() & "/signature.key; nim c --run -o:tmpfile -p:" &
          thisDir() & " " & file)
     rmFile("tmpfile")
     rmFile("cache/modules.cache")
+    rmFile("signature.key")
     rmFile("modules/testmodule")
   rmDir("cache")
   rmDir("modules")
