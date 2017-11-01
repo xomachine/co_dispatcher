@@ -14,8 +14,6 @@ else:
   randomize()
   let signatureFile = getEnv("COSIGNATURE")
   let dispatcher = getEnv("DISPATCHER")
-  const key = "somesignaturemessage"
-  signatureFile.writeFile(key)
   suite "Signature checking":
     test "Simple signature checking":
       let t: Task = (name: "test", module: "tmod", nprocs: 0'u8, memory: 0'u32,

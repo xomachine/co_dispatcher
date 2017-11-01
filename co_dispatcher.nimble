@@ -19,14 +19,15 @@ task tests, "Run tests":
   mkDir("modules")
   mkDir("cache")
   for file in test_files:
+    "signature.key".writeFile("thisisatemporarykey")
     exec("nim c -d:module -o:modules/testmodule " & file)
     exec("export DISPATCHER=" & executable & "; export COMODCACHE=" &
          thisDir() & "/cache/modules.cache" & "; export COSIGNATURE=" &
          thisDir() & "/signature.key; nim c --run -o:tmpfile -p:" &
          thisDir() & " " & file)
     rmFile("tmpfile")
-    rmFile("cache/modules.cache")
     rmFile("signature.key")
+    rmFile("cache/modules.cache")
     rmFile("modules/testmodule")
   rmDir("cache")
   rmDir("modules")
